@@ -1,0 +1,201 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'CloudFormation template to create a Bedrock Knowledge Base with S3 data source'
+
+Parameters:
+  KnowledgeBaseName:
+    Type: String
+    Default: my-knowledge-base
+    Description: Name for the Bedrock Knowledge Base
+
+  CreateNewS3Bucket:
+    Type: String
+    Default: 'true'
+    AllowedValues:
+      - 'true'
+      - 'false'
+    Description: Set to 'true' to create a new S3 bucket, 'false' to use existing bucket
+
+  S3BucketName:
+    Type: String
+    Description: Name of the S3 bucket (will be created if CreateNewS3Bucket is true)
+    Default: bedrock-kb-bucket
+
+  S3BucketPrefix:
+    Type: String
+    Default: documents/
+    Description: Prefix/folder path in S3 bucket where documents are stored
+
+  EmbeddingModelId:
+    Type: String
+    Default: amazon.titan-embed-text-v1
+    Description: Embedding model for the knowledge base
+    AllowedValues:
+      - amazon.titan-embed-text-v1
+      - amazon.titan-embed-text-v2:0
+      - cohere.embed-english-v3
+
+  OpenSearchCollectionArn:
+    Type: String
+    Description: ARN of OpenSearch Serverless collection (from cloudformation-opensearch.yaml stack outputs)
+    Default: ''
+
+Conditions:
+  ShouldCreateBucket: !Equals [!Ref CreateNewS3Bucket, 'true']
+
+Resources:
+  # S3 Bucket for Knowledge Base Documents
+  KnowledgeBaseS3Bucket:
+    Type: AWS::S3::Bucket
+    Condition: ShouldCreateBucket
+    Properties:
+      BucketName: !Sub '${S3BucketName}-${AWS::AccountId}'
+      VersioningConfiguration:
+        Status: Enabled
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: AES256
+      Tags:
+        - Key: Purpose
+          Value: BedrockKnowledgeBase
+
+  # S3 Bucket Policy to allow Bedrock access
+  KnowledgeBaseS3BucketPolicy:
+    Type: AWS::S3::BucketPolicy
+    Condition: ShouldCreateBucket
+    Properties:
+      Bucket: !Ref KnowledgeBaseS3Bucket
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: bedrock.amazonaws.com
+            Action:
+              - s3:ListBucket
+            Resource:
+              - !GetAtt KnowledgeBaseS3Bucket.Arn
+          - Effect: Allow
+            Principal:
+              Service: bedrock.amazonaws.com
+            Action:
+              - s3:GetObject
+            Resource:
+              - !Sub '${KnowledgeBaseS3Bucket.Arn}/*'
+
+  # IAM Role for Bedrock Knowledge Base
+  BedrockKnowledgeBaseRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: bedrock.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/AmazonBedrockFullAccess
+      Policies:
+        - PolicyName: S3AccessPolicy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - s3:ListBucket
+                Resource:
+                  - !If
+                    - ShouldCreateBucket
+                    - !GetAtt KnowledgeBaseS3Bucket.Arn
+                    - !Sub 'arn:aws:s3:::${S3BucketName}'
+              - Effect: Allow
+                Action:
+                  - s3:GetObject
+                Resource:
+                  - !If
+                    - ShouldCreateBucket
+                    - !Sub '${KnowledgeBaseS3Bucket.Arn}/*'
+                    - !Sub 'arn:aws:s3:::${S3BucketName}/*'
+        - PolicyName: OpenSearchAccessPolicy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - aoss:APIAccessAll
+                Resource:
+                  - !GetAtt OpenSearchCollection.Arn
+
+  # Bedrock Knowledge Base
+  BedrockKnowledgeBase:
+    Type: AWS::Bedrock::KnowledgeBase
+    Properties:
+      Name: !Ref KnowledgeBaseName
+      Description: Knowledge base for customer support content
+      RoleArn: !GetAtt BedrockKnowledgeBaseRole.Arn
+      KnowledgeBaseConfiguration:
+        Type: VECTOR
+        VectorKnowledgeBaseConfiguration:
+          EmbeddingModelArn: !Sub 'arn:aws:bedrock:${AWS::Region}::foundation-model/${EmbeddingModelId}'
+      StorageConfiguration:
+        Type: OPENSEARCH_SERVERLESS
+        OpensearchServerlessConfiguration:
+          CollectionArn: !Ref OpenSearchCollectionArn
+          VectorIndexName: bedrock-kb-index
+          FieldMapping:
+            VectorField: vector_field
+            TextField: text_field
+            MetadataField: metadata_field
+
+  # OpenSearch Collection ARN (created manually via CLI)
+  # See DEPLOYMENT_PLAN.md for manual OpenSearch setup
+
+  # Data Source (S3)
+  BedrockDataSource:
+    Type: AWS::Bedrock::DataSource
+    Properties:
+      KnowledgeBaseId: !Ref BedrockKnowledgeBase
+      Name: S3DataSource
+      DataSourceConfiguration:
+        Type: S3
+        S3Configuration:
+          BucketArn: !If
+            - ShouldCreateBucket
+            - !GetAtt KnowledgeBaseS3Bucket.Arn
+            - !Sub 'arn:aws:s3:::${S3BucketName}'
+          InclusionPrefixes:
+            - !Ref S3BucketPrefix
+
+Outputs:
+  KnowledgeBaseId:
+    Description: Bedrock Knowledge Base ID
+    Value: !Ref BedrockKnowledgeBase
+
+  DataSourceId:
+    Description: Data Source ID
+    Value: !Ref BedrockDataSource
+
+  KnowledgeBaseArn:
+    Description: Bedrock Knowledge Base ARN
+    Value: !GetAtt BedrockKnowledgeBase.KnowledgeBaseArn
+
+  S3BucketName:
+    Description: S3 Bucket Name (if created)
+    Value: !If [ShouldCreateBucket, !Ref KnowledgeBaseS3Bucket, !Ref S3BucketName]
+    Export:
+      Name: !Sub '${AWS::StackName}-S3BucketName'
+
+  S3BucketArn:
+    Description: S3 Bucket ARN
+    Value: !If
+      - ShouldCreateBucket
+      - !GetAtt KnowledgeBaseS3Bucket.Arn
+      - !Sub 'arn:aws:s3:::${S3BucketName}'
+    Export:
+      Name: !Sub '${AWS::StackName}-S3BucketArn'

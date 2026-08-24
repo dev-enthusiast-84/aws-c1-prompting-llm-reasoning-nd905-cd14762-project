@@ -1,0 +1,82 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'Bedrock Guardrail - Blocks prompt injections and protects sensitive data'
+
+Parameters:
+  GuardrailName:
+    Type: String
+    Default: CustomerSupportGuardrail
+    Description: Name of the Bedrock Guardrail
+
+  Environment:
+    Type: String
+    Default: dev
+    AllowedValues:
+      - dev
+      - staging
+      - prod
+    Description: Environment name
+
+Resources:
+  BedrockGuardrail:
+    Type: AWS::Bedrock::Guardrail
+    Properties:
+      Name: !Sub '${GuardrailName}-${Environment}'
+      Description: 'Guardrail to block prompt injections and protect sensitive data'
+      BlockedInputMessaging: 'Your request violates security policies and cannot be processed.'
+      BlockedOutputsMessaging: 'The response was blocked due to security restrictions.'
+
+      # ONLY Prompt Attack Filter - blocks injection attempts
+      ContentPolicyConfig:
+        FiltersConfig:
+          - Type: PROMPT_ATTACK
+            InputStrength: HIGH
+            OutputStrength: NONE
+
+      # Sensitive Information Redaction
+      SensitiveInformationPolicyConfig:
+        PiiEntitiesConfig:
+          - Type: EMAIL
+            Action: ANONYMIZE
+          - Type: PHONE
+            Action: ANONYMIZE
+          - Type: NAME
+            Action: ANONYMIZE
+
+      Tags:
+        - Key: Environment
+          Value: !Ref Environment
+        - Key: Purpose
+          Value: CustomerSupport
+        - Key: CreatedBy
+          Value: CloudFormation
+
+  GuardrailVersion:
+    Type: AWS::Bedrock::GuardrailVersion
+    Properties:
+      GuardrailIdentifier: !Ref BedrockGuardrail
+      Description: !Sub 'Version 3 of ${GuardrailName}'
+
+Outputs:
+  GuardrailId:
+    Description: ID of the Bedrock Guardrail
+    Value: !Ref BedrockGuardrail
+    Export:
+      Name: !Sub '${AWS::StackName}-GuardrailId'
+
+  GuardrailArn:
+    Description: ARN of the Bedrock Guardrail
+    Value: !GetAtt BedrockGuardrail.GuardrailArn
+    Export:
+      Name: !Sub '${AWS::StackName}-GuardrailArn'
+
+  GuardrailVersionId:
+    Description: Version ID of the Bedrock Guardrail
+    Value: !GetAtt GuardrailVersion.Version
+    Export:
+      Name: !Sub '${AWS::StackName}-GuardrailVersionId'
+
+  GuardrailVersionArn:
+    Description: Full ARN of the Bedrock Guardrail Version
+    Value: !Ref GuardrailVersion
+    Export:
+      Name: !Sub '${AWS::StackName}-GuardrailVersionArn'
