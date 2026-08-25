@@ -1,2 +1,214 @@
+# =============================================================================
+# AWS AI/ML Scholar Project (ND905) - Git Ignore Configuration
+# =============================================================================
+
+# =============================================================================
+# AWS CLI & Project-Specific
+# =============================================================================
 # AWS CLI command artifacts (should not be committed)
 command.txt
+.aws/
+credentials.json
+aws_credentials
+*.pem
+*.key
+
+# Project working files
+.bedrock_cache/
+bedrock_*
+evaluation_cache/
+
+# =============================================================================
+# OS & Editor Files
+# =============================================================================
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+desktop.ini
+
+# IDE & Editors
+.vscode/
+.idea/
+.project
+.pydevproject
+.settings/
+.sublime-project
+.sublime-workspace
+
+# IDE-specific settings (but not project-wide configs)
+.vscode/settings.json
+.idea/workspace.xml
+.idea/tasks.xml
+
+# Editor temporary files
+*.swp
+*.swo
+*~
+*.sublime-project
+*.sublime-workspace
+
+# =============================================================================
+# Python
+# =============================================================================
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+
+# Virtual Environments
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+.venv/
+.env_venv/
+python_env/
+python_venv/
+
+# Python packages
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+pip-log.txt
+pip-delete-this-directory.txt
+MANIFEST
+
+# Python testing
+.pytest_cache/
+.coverage
+htmlcov/
+*.prof
+.tox/
+.hypothesis/
+.mypy_cache/
+.dmypy.json
+dmypy.json
+*.cover
+.coverage.*
+
+# Jupyter Notebook
+.ipynb_checkpoints
+*.ipynb
+
+# Linting & Type Checking
+.pylintrc
+.flake8
+pylintrc
+
+# =============================================================================
+# Node & JavaScript
+# =============================================================================
+node_modules/
+npm-debug.log
+yarn-error.log
+package-lock.json
+yarn.lock
+
+# =============================================================================
+# Data & Logs
+# =============================================================================
+*.log
+logs/
+*.csv
+*.xlsx
+*.xls
+*.db
+*.sqlite
+*.sqlite3
+
+# Temporary data files
+*.tmp
+*.temp
+*.bak
+*.backup
+local_test_data/
+
+# =============================================================================
+# Build & Distribution
+# =============================================================================
+build/
+dist/
+*.egg-info/
+.eggs/
+*.zip
+*.tar
+*.tar.gz
+*.rar
+*.7z
+
+# =============================================================================
+# Bedrock & AWS ML
+# =============================================================================
+model_checkpoints/
+checkpoint*/
+model_outputs/
+evaluation_results_*/
+runs/
+lightning_logs/
+
+# =============================================================================
+# Testing & Development
+# =============================================================================
+test_outputs/
+test_results/
+debug_logs/
+.cache/
+
+# =============================================================================
+# Secrets & Credentials
+# =============================================================================
+.env
+.env.local
+.env.*.local
+secrets/
+private/
+.credentials
+.tokens
+.api_keys
+config.json
+
+# =============================================================================
+# Large/Binary Files
+# =============================================================================
+*.pkl
+*.pickle
+*.joblib
+*.model
+*.bin
+
+# =============================================================================
+# Miscellaneous
+# =============================================================================
+*.mo
+*.pot
+site/
+docs/_build/
+
+# =============================================================================
+# IMPORTANT: Keep submission artifacts
+# =============================================================================
+# Do NOT ignore evaluation results and submission artifacts
+!project/starter/submission-artifacts/**/*.jsonl
+!project/starter/submission-artifacts/**/eval-results.md
+!project/starter/submission-artifacts/**/results/
+!project/starter/submission-artifacts/**/screenshots/
+!project/starter/submission-artifacts/**/prompts/
+!project/starter/submission-artifacts/**/docs/
